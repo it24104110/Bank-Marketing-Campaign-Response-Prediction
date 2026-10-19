@@ -1,0 +1,182 @@
+===============================================================================
+ IT3091 Machine Learning - Group 2026-DS-02 - Bank Marketing
+ EVALUATION FINDINGS (Step 6 - hold-out test set)
+ Source notebook: notebooks/05_evaluation.ipynb
+ Figures:         fig14_test_roc_pr_gains.png, fig15_threshold_tradeoff.png,
+                  fig16_confusion_matrices.png
+ Results:         results/test_results.csv, cv_vs_test.csv, bootstrap_ci.csv,
+                  gains_table.csv, thresholds_from_oof.csv,
+                  threshold_results.csv, per_year_test.csv
+===============================================================================
+
+All numbers below come from the executed notebook outputs.
+Test set: 8,236 clients never used for any decision before (928 subscribers,
+11.27%). Models loaded exactly as saved in Step 5 - no retraining.
+
+
+-------------------------------------------------------------------------------
+1. TEST RESULTS (threshold 0.5 for recall / precision / F1 / accuracy)
+-------------------------------------------------------------------------------
+  model                 PR-AUC  ROC-AUC  precision  recall  F1     bal.acc  accuracy  top-20%
+  Dummy: always no      0.113   0.500    0.000      0.000   0.000  0.500    0.887     0.194
+  Dummy: random guess   0.116   0.512    0.135      0.133   0.134  0.512    0.807     0.216
+  Logistic Regression   0.446   0.797    0.338      0.662   0.448  0.749    0.816     0.643
+  Decision Tree         0.465   0.792    0.303      0.680   0.420  0.741    0.788     0.642
+  Random Forest         0.496   0.814    0.431      0.637   0.514  0.765    0.864     0.671
+  XGBoost               0.484   0.814    0.390      0.656   0.490  0.763    0.846     0.665
+
+
+-------------------------------------------------------------------------------
+2. DOES THE TEST SET AGREE WITH CROSS-VALIDATION?
+-------------------------------------------------------------------------------
+  model                 CV PR-AUC (std)    Test PR-AUC   Test-CV   within 2 std?
+  Logistic Regression   0.4376 (0.0125)    0.4464        +0.0088   yes
+  Decision Tree         0.4433 (0.0156)    0.4646        +0.0214   yes
+  Random Forest         0.4702 (0.0176)    0.4955        +0.0253   yes
+  XGBoost               0.4674 (0.0166)    0.4844        +0.0170   yes
+  (ROC-AUC: CV 0.78-0.80 -> test 0.79-0.81; top-20%: CV 62-64% -> test 64-67%)
+
+  FINDINGS
+  - All test scores are within 2 CV standard deviations -> the CV estimates
+    were reliable and the models GENERALISE to unseen clients.
+  - Test scores are all slightly higher than CV - consistent with normal
+    sampling variation (and each model was trained on 100% instead of 80%
+    of the training data). No sign of over-tuning to the CV folds.
+  - Same ranking as CV: RF > XGBoost > DT > LR.
+
+
+-------------------------------------------------------------------------------
+3. BOOTSTRAP 95% CONFIDENCE INTERVALS (1,000 resamples of the test set)
+-------------------------------------------------------------------------------
+  model / difference                    PR-AUC    95% CI            first better in   significant?
+  Logistic Regression                   0.4464    [0.4134, 0.4824]
+  Decision Tree                         0.4646    [0.4312, 0.4994]
+  Random Forest                         0.4955    [0.4605, 0.5299]
+  XGBoost                               0.4844    [0.4492, 0.5197]
+  Random Forest - XGBoost              +0.0111    [0.0032, 0.0187]   99.8%            yes
+  Random Forest - Logistic Regression  +0.0491    [0.0327, 0.0658]  100.0%            yes
+  XGBoost - Logistic Regression        +0.0380    [0.0253, 0.0524]  100.0%            yes
+  Decision Tree - Logistic Regression  +0.0182    [0.0013, 0.0347]   98.2%            yes (borderline)
+
+  FINDINGS
+  - RF and XGBoost are clearly better than the baseline (CIs far from 0).
+  - RF vs XGBoost: on the test set RF is better by ~1 point of PR-AUC and
+    the CI excludes 0. In CV they were tied (difference 0.003). So RF has a
+    small but consistent edge; in practical terms the two are very close.
+  - Decision Tree vs LR: borderline on test (CI lower bound 0.001), not
+    reliable in CV (3/5 folds) -> at most a marginal improvement.
+  - Caveat: the bootstrap measures uncertainty from the test sample only,
+    not from re-training the models.
+
+
+-------------------------------------------------------------------------------
+4. GAINS - "if we call the top x% of clients, what share of subscribers
+   do we reach?"                                                     [fig14]
+-------------------------------------------------------------------------------
+  model                 top 10%  top 20%  top 30%  top 40%  top 50%
+  Logistic Regression    43.0%    64.3%    72.0%    77.7%    81.6%
+  Decision Tree          45.8%    64.2%    70.8%    77.5%    80.8%
+  Random Forest          47.2%    67.1%    73.8%    78.1%    84.4%
+  XGBoost                46.3%    66.5%    74.2%    79.6%    84.4%
+  Random calling         10.0%    20.0%    30.0%    40.0%    50.0%
+
+  Lift over random: RF 4.72x (top 10%), 3.36x (top 20%), 2.46x (top 30%).
+  - The gains curve rises very steeply up to ~15% of clients (~60% of
+    subscribers), then flattens: there is a clearly identifiable
+    high-likelihood group; beyond it, extra calls add few subscribers.
+  - All models have very similar curves; RF/XGBoost are slightly above.
+
+
+-------------------------------------------------------------------------------
+5. THRESHOLD TUNING (chosen on TRAINING out-of-fold predictions)   [fig15]
+-------------------------------------------------------------------------------
+  Out-of-fold PR-AUC (training): LR 0.4355 | RF 0.4666 | XGB 0.4634
+  Thresholds chosen:
+    model                 Max F1   Recall >= 70%   Capacity 20%
+    Logistic Regression   0.648    0.413           0.523
+    Random Forest         0.579    0.364           0.424
+    XGBoost               0.661    0.393           0.485
+
+  Applied unchanged to the TEST set:
+  model     rule           thr    %called  calls  found  missed  wasted  recall  conversion  F1
+  LR        default 0.5    0.500   22.1    1,816   614    314    1,202   0.662   0.338      0.448
+  LR        Max F1         0.648   14.5    1,198   545    383      653   0.587   0.455      0.513
+  LR        Recall>=70%    0.413   30.4    2,506   670    258    1,836   0.722   0.267      0.390
+  LR        Capacity 20%   0.523   20.3    1,669   599    329    1,070   0.645   0.359      0.461
+  RF        default 0.5    0.500   16.6    1,371   591    337      780   0.637   0.431      0.514
+  RF        Max F1         0.579   14.6    1,206   563    365      643   0.607   0.467      0.528
+  RF        Recall>=70%    0.364   28.0    2,307   679    249    1,628   0.732   0.294      0.420
+  RF        Capacity 20%   0.424   20.1    1,653   623    305    1,030   0.671   0.377      0.483
+  XGB       default 0.5    0.500   18.9    1,560   609    319      951   0.656   0.390      0.490
+  XGB       Max F1         0.661   14.0    1,152   548    380      604   0.591   0.476      0.527
+  XGB       Recall>=70%    0.393   27.4    2,259   670    258    1,589   0.722   0.297      0.420
+  XGB       Capacity 20%   0.485   19.8    1,632   616    312    1,016   0.664   0.377      0.481
+  Random    call everyone   -     100.0    8,236   928      0    7,308   1.000   0.113      0.203
+
+  FINDINGS
+  - Thresholds chosen on training OOF transfer well: capacity rule called
+    19.8-20.3% of test clients (target 20%); recall rule reached 72-73%
+    (target 70%). This validates the leakage-free threshold method.
+  - The default 0.5 is not optimal: Max F1 raises F1 for every model
+    (RF 0.514 -> 0.528, LR 0.448 -> 0.513).
+  - The F1 curve is flat between ~0.45 and ~0.70, so the exact threshold is
+    not critical; the rule can be chosen on business grounds.
+  - Each rule is a business trade-off (RF):
+      Max F1:       call 14.6% -> find 60.7% of subscribers, conversion 46.7%
+      Capacity 20%: call 20.1% -> find 67.1%, conversion 37.7%
+      Recall >=70%: call 28.0% -> find 73.2%, conversion 29.4%
+      vs calling everyone: conversion 11.3%
+
+
+-------------------------------------------------------------------------------
+6. BUSINESS TRANSLATION                                             [fig16]
+-------------------------------------------------------------------------------
+  Calling everyone:            8,236 calls -> 928 subscribers (conversion 11.3%)
+  Random Forest, Max F1:       1,206 calls (14.6%) -> 563 subscribers (60.7%)
+                               conversion 46.7% = 4.1x calling everyone
+  Random Forest, Capacity 20%: 1,653 calls (20.1%) -> 623 subscribers (67.1%)
+                               conversion 37.7% = 3.3x calling everyone
+  XGBoost, Max F1:             1,152 calls (14.0%) -> 548 subscribers (59.1%)
+                               conversion 47.6% = 4.2x
+  XGBoost, Capacity 20%:       1,632 calls (19.8%) -> 616 subscribers (66.4%)
+                               conversion 37.7% = 3.3x
+  -> With RF at 20% capacity the bank makes 80% fewer calls, still reaches
+     two thirds of subscribers, and wasted calls fall from 7,308 to 1,030.
+  -> Trade-off: about one third of subscribers (305) would not be called.
+
+
+-------------------------------------------------------------------------------
+7. PER-YEAR CHECK (time drift) - ranking quality WITHIN each year
+-------------------------------------------------------------------------------
+  year   test rows  yes-rate   ROC-AUC: LR    DT     RF     XGB     PR-AUC lift: LR   DT    RF    XGB
+  2008     5,566      4.49%            0.560  0.537  0.588  0.589                1.29  1.50  2.21  2.13
+  2009     2,277     20.60%            0.755  0.770  0.790  0.784                2.15  2.21  2.42  2.33
+  2010       393     53.18%            0.688  0.742  0.744  0.730                1.33  1.41  1.45  1.43
+
+  FINDINGS
+  - Within every year, ranking is weaker than the overall ROC-AUC (0.81):
+    part of the model's skill is telling GOOD PERIODS from BAD PERIODS
+    (economic conditions), not only good clients from bad clients.
+  - 2008 (first campaign period, almost no previous-contact history):
+    weak within-year ranking (~0.59). 2009, when contact history exists:
+    strong (0.79). 2010: good (0.74) but only 393 rows.
+  - RF is best or tied-best in every year; its advantage over LR is
+    largest in 2008 (PR-AUC lift 2.21 vs 1.29).
+  - Confirms the Step 4 limitation: the model works best when trained on
+    recent data that includes contact history; it must be retrained as
+    conditions change, and within a single campaign the expected ranking
+    quality is lower than the headline 0.81.
+
+
+-------------------------------------------------------------------------------
+8. CONCLUSION
+-------------------------------------------------------------------------------
+  - Random Forest is the strongest model on every test view: PR-AUC (0.496,
+    significantly above XGBoost by ~0.011), top-10/20% gains, F1, and
+    within-year ranking in all three years. XGBoost is a close second.
+  - Points against RF (from Step 5): largest train-CV gap (25.5%), 2.5x
+    slower to train, 14x larger model file.
+  - Final selection is made in Step 8 together with interpretability
+    (Step 7: SHAP / feature importance / profiles).
+
+===============================================================================

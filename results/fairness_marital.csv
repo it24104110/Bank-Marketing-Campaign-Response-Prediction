@@ -1,0 +1,5 @@
+group,clients,actual yes-rate %,selection rate %,recall %,precision %
+married,5006,9.8,16.8,64.7,37.8
+single,2307,14.3,28.8,74.8,37.1
+divorced,911,11.4,15.8,54.8,39.6
+unknown,12,8.3,8.3,0.0,0.0

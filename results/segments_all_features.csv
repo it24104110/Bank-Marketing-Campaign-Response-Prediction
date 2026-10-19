@@ -1,0 +1,9 @@
+,segment rule,train clients,train yes-rate %,test clients,test yes-rate %,lift (test)
+S1,nr.employed <= 5088  AND  poutcome = success  AND  nr.employed <= 5013,528,77.1,120,76.7,6.8
+S2,nr.employed <= 5088  AND  poutcome = success  AND  nr.employed > 5013,374,65.2,95,64.2,5.7
+S3,nr.employed <= 5088  AND  poutcome ≠ success  AND  contact = cellular,2607,38.5,629,41.8,3.71
+S4,nr.employed <= 5088  AND  poutcome ≠ success  AND  contact ≠ cellular,478,21.8,131,26.0,2.3
+S5,nr.employed > 5088  AND  cons.conf.idx <= -46.65  AND  poutcome ≠ failure,1667,23.7,451,23.7,2.11
+S6,nr.employed > 5088  AND  cons.conf.idx <= -46.65  AND  poutcome = failure,502,11.0,119,9.2,0.82
+S7,nr.employed > 5088  AND  cons.conf.idx > -46.65  AND  cons.price.idx <= 93.96,17106,6.8,4233,6.5,0.58
+S8,nr.employed > 5088  AND  cons.conf.idx > -46.65  AND  cons.price.idx > 93.96,9678,3.5,2458,3.5,0.31

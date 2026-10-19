@@ -1,0 +1,5 @@
+model,train_pr_auc,cv_pr_auc,gap,gap_%_of_cv
+Logistic Regression,0.4399,0.4376,0.0023,0.5
+Decision Tree,0.4784,0.4433,0.0352,7.9
+Random Forest,0.59,0.4702,0.1198,25.5
+XGBoost,0.5327,0.4674,0.0653,14.0

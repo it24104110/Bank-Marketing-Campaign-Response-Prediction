@@ -1,0 +1,4 @@
+year,test rows,yes-rate %,Logistic Regression ROC-AUC,Decision Tree ROC-AUC,Random Forest ROC-AUC,XGBoost ROC-AUC,Logistic Regression PR-AUC lift,Decision Tree PR-AUC lift,Random Forest PR-AUC lift,XGBoost PR-AUC lift
+2008,5566,4.49,0.56,0.537,0.588,0.589,1.29,1.5,2.21,2.13
+2009,2277,20.6,0.755,0.77,0.79,0.784,2.15,2.21,2.42,2.33
+2010,393,53.18,0.688,0.742,0.744,0.73,1.33,1.41,1.45,1.43

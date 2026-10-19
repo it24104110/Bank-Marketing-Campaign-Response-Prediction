@@ -1,0 +1,11 @@
+params,cv_pr_auc,cv_std,train_pr_auc,rank_test_score
+"{'model__n_estimators': 300, 'model__min_samples_leaf': 10, 'model__max_features': 0.3, 'model__max_depth': 12, 'model__class_weight': 'balanced'}",0.4702,0.0176,0.59,1
+"{'model__n_estimators': 300, 'model__min_samples_leaf': 10, 'model__max_features': 'sqrt', 'model__max_depth': 16, 'model__class_weight': 'balanced_subsample'}",0.47,0.0189,0.5876,2
+"{'model__n_estimators': 200, 'model__min_samples_leaf': 20, 'model__max_features': 0.3, 'model__max_depth': 12, 'model__class_weight': 'balanced_subsample'}",0.4695,0.0173,0.5493,3
+"{'model__n_estimators': 300, 'model__min_samples_leaf': 10, 'model__max_features': 'sqrt', 'model__max_depth': 12, 'model__class_weight': 'balanced'}",0.469,0.0175,0.5573,4
+"{'model__n_estimators': 200, 'model__min_samples_leaf': 20, 'model__max_features': 0.3, 'model__max_depth': 16, 'model__class_weight': 'balanced'}",0.4688,0.0175,0.5691,5
+"{'model__n_estimators': 300, 'model__min_samples_leaf': 10, 'model__max_features': 'sqrt', 'model__max_depth': None, 'model__class_weight': 'balanced_subsample'}",0.4684,0.0177,0.603,6
+"{'model__n_estimators': 300, 'model__min_samples_leaf': 20, 'model__max_features': 0.5, 'model__max_depth': 8, 'model__class_weight': 'balanced_subsample'}",0.4676,0.0182,0.5196,7
+"{'model__n_estimators': 200, 'model__min_samples_leaf': 10, 'model__max_features': 0.5, 'model__max_depth': 8, 'model__class_weight': 'balanced'}",0.4675,0.0172,0.5343,8
+"{'model__n_estimators': 300, 'model__min_samples_leaf': 10, 'model__max_features': 0.3, 'model__max_depth': None, 'model__class_weight': 'balanced_subsample'}",0.4674,0.0169,0.6464,9
+"{'model__n_estimators': 200, 'model__min_samples_leaf': 20, 'model__max_features': 0.5, 'model__max_depth': None, 'model__class_weight': 'balanced_subsample'}",0.4669,0.0171,0.5906,10

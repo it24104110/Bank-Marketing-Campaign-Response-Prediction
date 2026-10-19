@@ -1,0 +1,72 @@
+{
+  "model": "RandomForestClassifier (scikit-learn Pipeline)",
+  "created": "2026-10-10",
+  "trained_on_rows": 41176,
+  "dataset_sha256": "74adfc578bf77a7ff4bb1ba4a9f8709d9e3c6907342959c2c8416847e0afb4d8",
+  "hyperparameters": {
+    "class_weight": "balanced",
+    "max_depth": 12,
+    "max_features": 0.3,
+    "min_samples_leaf": 10,
+    "n_estimators": 300
+  },
+  "categorical_inputs": [
+    "job",
+    "education",
+    "default",
+    "contact",
+    "month",
+    "day_of_week",
+    "poutcome"
+  ],
+  "numeric_inputs": [
+    "campaign",
+    "previous",
+    "contacted_before",
+    "emp.var.rate",
+    "cons.price.idx",
+    "cons.conf.idx",
+    "euribor3m",
+    "nr.employed"
+  ],
+  "excluded_features": {
+    "leakage": [
+      "duration"
+    ],
+    "no_signal": [
+      "housing",
+      "loan"
+    ],
+    "data_minimisation": [
+      "age",
+      "marital"
+    ],
+    "replaced": {
+      "pdays": "contacted_before"
+    }
+  },
+  "row_cleaning": "src.preprocessing.clean_rows (dedupe, contacted_before, default no/not_no, merge illiterate, cap campaign at 10)",
+  "operating_rules": {
+    "main": {
+      "name": "Capacity 20%",
+      "how": "rank clients by score and call the top 20%",
+      "reference_threshold": 0.4472
+    },
+    "alternative": {
+      "name": "Max F1",
+      "how": "call clients with score >= threshold",
+      "threshold": 0.6377
+    }
+  },
+  "test_performance": {
+    "pr_auc": 0.4959,
+    "roc_auc": 0.814,
+    "top20_capture": 0.6703,
+    "balanced_acc": 0.7621
+  },
+  "versions": {
+    "python": "3.13.7",
+    "scikit-learn": "1.7.1",
+    "pandas": "2.3.2"
+  }
+}

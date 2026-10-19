@@ -1,0 +1,22 @@
+column,group,type,description,values / range,n_unique,n_unknown,pct_unknown,known_before_call
+age,client,numeric (discrete),Client age in years,17 to 98,78,0,0.0,Yes
+job,client,nominal,Type of job,"admin., blue-collar, entrepreneur, housemaid, management, retired, self-employed, services, student, technician, unemployed, unknown",12,330,0.8,Yes
+marital,client,nominal,Marital status ('divorced' includes widowed),"divorced, married, single, unknown",4,80,0.19,Yes
+education,client,ordinal,Education level,"basic.4y, basic.6y, basic.9y, high.school, illiterate, professional.course, university.degree, unknown",8,1731,4.2,Yes
+default,client,binary + unknown,Has credit in default?,"no, unknown, yes",3,8597,20.87,Yes
+housing,client,binary + unknown,Has a housing loan?,"no, unknown, yes",3,990,2.4,Yes
+loan,client,binary + unknown,Has a personal loan?,"no, unknown, yes",3,990,2.4,Yes
+contact,contact,binary,Contact communication type,"cellular, telephone",2,0,0.0,Yes (planned channel)
+month,contact,cyclical / nominal,Month of the last contact,"apr, aug, dec, jul, jun, mar, may, nov, oct, sep",10,0,0.0,Yes (planned call date)
+day_of_week,contact,cyclical / nominal,Weekday of the last contact,"fri, mon, thu, tue, wed",5,0,0.0,Yes (planned call date)
+duration,contact,numeric (continuous),Duration of the last contact in seconds,0 to 4918,1544,0,0.0,NO - only known after the call (leakage)
+campaign,campaign history,numeric (count),Number of contacts in this campaign for this client (includes the last contact),1 to 56,42,0,0.0,Partly - grows during the campaign
+pdays,campaign history,numeric with placeholder,Days since the client was last contacted in a previous campaign (999 = never contacted),0 to 999,27,0,0.0,Yes
+previous,campaign history,numeric (count),Number of contacts before this campaign for this client,0 to 7,8,0,0.0,Yes
+poutcome,campaign history,nominal,Outcome of the previous marketing campaign,"failure, nonexistent, success",3,0,0.0,Yes
+emp.var.rate,economic context,numeric (continuous),Employment variation rate (quarterly indicator),-3.4 to 1.4,10,0,0.0,Yes (public indicator)
+cons.price.idx,economic context,numeric (continuous),Consumer price index (monthly indicator),92.201 to 94.767,26,0,0.0,Yes (public indicator)
+cons.conf.idx,economic context,numeric (continuous),Consumer confidence index (monthly indicator),-50.8 to -26.9,26,0,0.0,Yes (public indicator)
+euribor3m,economic context,numeric (continuous),Euribor 3-month interest rate (daily indicator),0.634 to 5.045,316,0,0.0,Yes (public indicator)
+nr.employed,economic context,numeric (continuous),"Number of employees in the economy, thousands (quarterly indicator)",4963.6 to 5228.1,11,0,0.0,Yes (public indicator)
+y,target,binary target,TARGET - has the client subscribed to a term deposit?,"no, yes",2,0,0.0,Target

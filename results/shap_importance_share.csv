@@ -1,0 +1,18 @@
+,Random Forest,XGBoost
+nr.employed,20.0,30.6
+euribor3m,14.5,7.3
+emp.var.rate,14.2,8.1
+contact,8.6,7.5
+month,7.8,5.9
+poutcome,7.0,8.6
+day_of_week,3.9,4.6
+cons.conf.idx,3.8,6.1
+age,3.7,3.7
+job,3.3,3.1
+cons.price.idx,2.9,4.0
+education,2.9,3.3
+campaign,2.4,3.5
+default,1.9,2.0
+marital,1.9,1.7
+contacted_before,0.7,0.0
+previous,0.7,0.0

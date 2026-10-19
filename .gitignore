@@ -1,0 +1,29 @@
+# ---- Not part of the public project ----------------------------------------
+2026-DS-02-Initial_Report.pdf
+Personal_Contribution_Reports/
+IT3091_Assignment_Descriptor_V1.pdf
+*.mp4
+
+# Duplicates / original download
+2026-DS-02/
+bank+marketing/
+
+# Old versions
+notebooks/IT3091_2026-DS-02_final_notebook_olderr.ipynb
+notebooks/IT3091_2026-DS-02_final_notebook_v2.ipynb
+README_previous.md
+
+# Video recording scripts
+docs/video_script*.md
+
+# ---- Auto-generated files -------------------------------------------------
+.ipynb_checkpoints/
+__pycache__/
+*.pyc
+.DS_Store
+
+# ---- Environments and editors ---------------------------------------------
+.venv/
+venv/
+.vscode/
+.idea/

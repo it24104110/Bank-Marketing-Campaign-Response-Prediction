@@ -1,0 +1,242 @@
+===============================================================================
+ IT3091 Machine Learning - Group 2026-DS-02 - Bank Marketing
+ INTERPRETATION & MARKETING PROFILE FINDINGS (Step 7 - secondary lens)
+ Source notebook: notebooks/06_interpretation.ipynb
+ Figures:  fig17_permutation_importance.png, fig18_shap_summary_rf.png,
+           fig19_shap_importance_by_feature.png,
+           fig20_shap_dependence_numeric.png, fig21_shap_categorical_effects.png
+ Results:  results/permutation_importance.csv, shap_importance_share.csv,
+           lr_odds_ratios.csv, segments_all_features.csv,
+           segments_client_features.csv, top10_profile.csv,
+           fairness_age.csv, fairness_marital.csv,
+           age_marital_blind_comparison.csv, age_proxy_check.csv
+===============================================================================
+
+All numbers come from the executed notebook outputs (test set, 8,236 clients),
+except section 6(c), which was verified separately and added to the notebook as
+a new cell (re-run the notebook to reproduce it there).
+
+
+-------------------------------------------------------------------------------
+1. WHICH INPUTS DO THE MODELS RELY ON?  (permutation importance)    [fig17]
+-------------------------------------------------------------------------------
+  Drop in test PR-AUC when a feature is randomly shuffled:
+    feature            LR       RF       XGB
+    nr.employed       0.000    0.085    0.212
+    poutcome          0.044    0.059    0.061
+    euribor3m         0.238    0.059    0.019
+    emp.var.rate      0.000    0.040    0.013
+    contact           0.012    0.035    0.021
+    day_of_week       0.004    0.013    0.012
+    campaign          0.004    0.012    0.011
+    month             0.025    0.011    0.013
+    cons.conf.idx     0.006    0.009    0.012
+    cons.price.idx    0.021    0.007    0.006
+    age, education, default, job, marital, previous, contacted_before:
+                      all < 0.005 (practically 0)
+  (LR shows 0 for nr.employed / emp.var.rate because the linear pipeline
+   does not use them - decision D11.)
+
+  Agreement on feature ranking (Spearman): RF-XGB 0.96 | LR-RF 0.33 | LR-XGB 0.43
+  FINDINGS
+  - The economic indicators dominate, followed by poutcome and contact.
+  - RF and XGBoost rely on almost exactly the same features.
+  - LR differs because it keeps only euribor3m, which then carries the whole
+    economic signal (0.238).
+  - Single client attributes matter little once the economy and contact
+    history are known. previous / contacted_before add nothing beyond
+    poutcome (same information).
+  - Caveat: correlated features share credit, so each economic indicator
+    alone looks less important than the group really is.
+
+
+-------------------------------------------------------------------------------
+2. SHAP - SHARE OF IMPORTANCE PER FEATURE (1,500-client sample)    [fig19]
+-------------------------------------------------------------------------------
+    feature            RF %    XGB %
+    nr.employed        20.0    30.6
+    euribor3m          14.5     7.3
+    emp.var.rate       14.2     8.1
+    contact             8.6     7.5
+    month               7.8     5.9
+    poutcome            7.0     8.6
+    day_of_week         3.9     4.6
+    cons.conf.idx       3.8     6.1
+    age                 3.7     3.7
+    job                 3.3     3.1
+    cons.price.idx      2.9     4.0
+    education           2.9     3.3
+    campaign            2.4     3.5
+    default             1.9     2.0
+    marital             1.9     1.7
+    contacted_before    0.7     0.0
+    previous            0.7     0.0
+
+  Grouped (Random Forest):
+    Economic indicators (5)                            55.4%
+    Month                                               7.8%
+    Contact channel & timing (contact, day_of_week)    12.5%
+    Contact history (poutcome, campaign, previous,
+                     contacted_before)                 10.8%
+    Client characteristics (age, job, education,
+                     default, marital)                 13.7%
+  -> More than half of what the model "knows" is about the ECONOMIC CONTEXT
+     (plus month, ~63% is about WHEN the call happens). This explains the
+     time-drift results of Steps 4 and 6.
+
+
+-------------------------------------------------------------------------------
+3. DIRECTION OF EFFECTS (SHAP + LR odds ratios)          [fig18, fig20, fig21]
+-------------------------------------------------------------------------------
+  Numeric (RF SHAP dependence):
+  - euribor3m: below ~1.5 -> pushes towards YES (+0.05 to +0.15);
+               4-5 -> pushes towards NO (-0.05 to -0.10).
+  - nr.employed: below 5,100 -> YES (+0.10 to +0.19); 5,100+ -> NO.
+  - age: U-SHAPE - under ~30 and over ~60 push towards yes; 35-55 towards
+         no. (The model learned the non-linear pattern seen in the EDA.)
+  - campaign: 1-3 calls neutral; 5+ calls clearly negative (fatigue).
+
+  Categorical (mean RF SHAP per category):
+  - poutcome:  success +0.115 | nonexistent -0.009 | failure -0.060
+  - contact:   cellular +0.015 | telephone -0.056
+  - month:     oct +0.119, mar +0.041, dec +0.017 ... may -0.034 (only
+               negative month)
+  - job:       retired +0.013, student +0.004 ... unemployed -0.018,
+               housemaid -0.017, services -0.011
+  - default:   no +0.002 | not_no -0.023
+
+  Logistic Regression odds ratios (>1 raises the odds of subscribing):
+    poutcome = success     x 2.04      euribor3m (+1 SD)      x 0.42
+    month = mar            x 1.83      poutcome = failure     x 0.50
+    month = oct            x 1.42      month = may            x 0.50
+    cons.price.idx (+1 SD) x 1.26      contact = telephone    x 0.81
+    cons.conf.idx (+1 SD)  x 1.23      age 41-50              x 0.85
+    job = retired          x 1.21      age 31-40              x 0.86
+    contact = cellular     x 1.21      default = not_no       x 0.89
+    job = student          x 1.17      job = blue-collar      x 0.90
+    age 61-70              x 1.15
+  -> All three methods (EDA, SHAP, LR) tell the same story.
+
+
+-------------------------------------------------------------------------------
+4. SEGMENT RULES (3-level tree trained on TRAIN, checked on TEST)
+-------------------------------------------------------------------------------
+4.1 All features
+  seg  rule                                                        test n  test yes%  lift
+  S1   nr.employed<=5088 AND poutcome=success AND nr.employed<=5013   120    76.7    6.80
+  S2   nr.employed<=5088 AND poutcome=success AND nr.employed>5013     95    64.2    5.70
+  S3   nr.employed<=5088 AND poutcome!=success AND contact=cellular   629    41.8    3.71
+  S4   nr.employed<=5088 AND poutcome!=success AND contact!=cellular  131    26.0    2.30
+  S5   nr.employed>5088 AND cons.conf.idx<=-46.65 AND poutcome!=fail  451    23.7    2.11
+  S6   nr.employed>5088 AND cons.conf.idx<=-46.65 AND poutcome=fail   119     9.2    0.82
+  S7   nr.employed>5088 AND cons.conf.idx>-46.65 AND cons.price<=93.96 4,233   6.5    0.58
+  S8   nr.employed>5088 AND cons.conf.idx>-46.65 AND cons.price>93.96 2,458   3.5    0.31
+  -> The FIRST split is the economy. S7+S8 (81% of test clients, the
+     "normal economy" periods) respond at only 3.5-6.5%.
+
+4.2 Customer types - client + contact-history features only
+  seg  rule                                                        test n  test yes%  lift
+  S1   poutcome=success AND previous>1.5                              107    72.0    6.39
+  S2   poutcome=success AND previous<=1.5 AND campaign<=1.5            88    65.9    5.85
+  S3   poutcome=success AND previous<=1.5 AND campaign>1.5             84    44.0    3.91
+  S4   poutcome!=success AND contact=cellular AND age>60.5            114    41.2    3.66
+  S5   poutcome!=success AND contact=cellular AND age<=60.5         4,822    11.6    1.03
+  S6   poutcome!=success AND contact=telephone AND age>57.5           124     8.9    0.79
+  S7   poutcome!=success AND contact=telephone AND age<=57.5        2,897     4.8    0.43
+  -> Train and test rates agree closely (profiles are stable), except S3
+     (train 62.9% -> test 44.0%, only 84 test clients - less reliable).
+  -> S7 is the largest low-value group: landline clients under 58 without
+     previous success (2,897 clients, 4.8%).
+
+
+-------------------------------------------------------------------------------
+5. WHO ARE THE TOP-10% CLIENTS? (Random Forest priority list)
+-------------------------------------------------------------------------------
+  824 clients; actual yes-rate 53.2% vs 6.6% for the other 90%.
+                              top 10%     other 90%
+    median euribor3m           0.88         4.86
+    median nr.employed        5017.5       5195.8
+    median cons.conf.idx      -38.3        -41.8
+    contacted before           42.8%        10.3%
+    median campaign (calls)     1            2
+    median age                 36           38
+  Most over-represented categories (share in top 10% vs rest):
+    month = mar        11.8% vs 0.2%   (51x)
+    poutcome = success 27.2% vs 0.7%   (37x)
+    month = oct        11.8% vs 0.5%   (22x)
+    month = sep         8.5% vs 0.5%   (16x)
+    job = student       8.7% vs 1.5%   (5.8x)
+    job = retired      13.1% vs 3.0%   (4.4x)
+    contact = cellular 92.7% vs 59.8%  (1.6x)
+    marital = single   41.0% vs 26.6%  (1.5x)
+    education = university.degree 42.8% vs 28.2% (1.5x)
+
+
+-------------------------------------------------------------------------------
+6. RESPONSIBLE-AI CHECK
+-------------------------------------------------------------------------------
+(a) Group outcomes - RF at the Capacity-20% threshold (0.424)
+    age     clients  actual yes%  selected%  recall%  precision%
+    17-25      328      18.9        46.0       90.3     37.1
+    26-30    1,106      13.8        28.0       70.6     34.8
+    31-40    3,312      10.9        16.7       61.7     40.1
+    41-50    2,021       7.5        12.5       54.3     32.5
+    51-60    1,302       9.4        17.1       61.8     34.2
+    61-70       92      41.3        98.9      100.0     41.8
+    71+         75      54.7        97.3      100.0     56.2
+
+    marital  clients  actual yes%  selected%  recall%  precision%
+    married   5,006       9.8       16.8       64.7     37.8
+    single    2,307      14.3       28.8       74.8     37.1
+    divorced    911      11.4       15.8       54.8     39.6
+    unknown      12       8.3        8.3        0.0      0.0
+
+  - Large differences in who gets called (61+: ~98%; 41-50: 12.5%).
+  - They follow real differences in response (61+ subscribe at 41-55%),
+    and precision is broadly similar across groups (32-56%), so the model is
+    not simply wrong about these groups. But older clients would receive
+    far more calls, and middle-aged subscribers are found less often
+    (recall 54% for 41-50 vs 100% for 61+).
+
+(b) Cost of removing age and marital (same RF settings, retrained on train)
+                                       PR-AUC   ROC-AUC  top-20%
+    RF all features                    0.4955   0.8137   0.6713
+    RF without age & marital           0.4959   0.8140   0.6703
+    difference                        +0.0004  +0.0003  -0.0011
+  -> No performance cost at all.
+
+(c) Does removing them change WHO gets called? (top-20% rule, both models)
+    age     selected% with age   selected% without age & marital
+    17-25        46.0                  43.6
+    26-30        27.8                  25.4
+    31-40        16.7                  17.1
+    41-50        12.4                  14.0
+    51-60        17.1                  16.5
+    61-70        98.9                  98.9
+    71+          97.3                  94.7
+  -> Almost NO change. Other features act as PROXIES for age:
+     73.1% of 61+ clients have job = "retired", and they were mostly
+     contacted in the low-rate period (median euribor3m 0.85 vs 4.86).
+
+  CONCLUSION
+  - Simply deleting a sensitive column does not make a model "blind".
+  - Recommended: drop age and marital anyway (data minimisation - zero
+    cost), MONITOR selection and outcomes by group, cap contact frequency,
+    and apply extra care for older (potentially vulnerable) customers when
+    selling financial products. Human oversight of the call list.
+
+
+-------------------------------------------------------------------------------
+7. OVERALL CONCLUSIONS FOR THE SECONDARY LENS
+-------------------------------------------------------------------------------
+  1. TIMING / ECONOMY is the biggest driver (55-63% of model importance):
+     campaigns in low-interest-rate, low-employment periods convert far better.
+  2. CONTACT HISTORY is the strongest client-level signal: previous success
+     -> 65-77% yes.
+  3. CHANNEL: mobile clients convert ~3x better than landline clients.
+  4. WHO: students, retired / 60+ clients and singles respond more;
+     blue-collar, services and middle-aged clients less.
+  5. FATIGUE: 5+ calls in a campaign reduce the chance of success.
+  6. The model's top-10% list converts at 53% vs 6.6% for everyone else.
+
+===============================================================================

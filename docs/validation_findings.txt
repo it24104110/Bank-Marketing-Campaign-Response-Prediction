@@ -1,0 +1,137 @@
+===============================================================================
+ IT3091 Machine Learning - Group 2026-DS-02 - Bank Marketing
+ VALIDATION DESIGN FINDINGS (Step 4)
+ Source notebook: notebooks/03_validation.ipynb
+ Shared code:     src/evaluation.py
+ Figure:          figures/fig11_time_drift_validation.png
+===============================================================================
+
+All numbers below come from the executed notebook outputs.
+Only the TRAINING set (32,940 rows, 11.27% yes) was used. The test set
+(8,236 rows) is still locked.
+
+
+-------------------------------------------------------------------------------
+1. VALIDATION SCHEME                                                [D18]
+-------------------------------------------------------------------------------
+- Stratified 5-fold cross-validation, shuffled, random_state = 42.
+- The SAME folds are used for every model (ev.CV), so comparisons are fair.
+- Preprocessing is inside each pipeline, so it is re-fitted on each training
+  fold (no leakage between folds).
+- Hyperparameter tuning (Step 5) also uses these folds, on training data only.
+- The test set is used ONCE at the end (ev.evaluate_test).
+
+  Fold check - stratification worked:
+    fold   train rows   val rows   val yes   val yes-rate
+    1-4      26,352       6,588       742       11.26%
+    5        26,352       6,588       743       11.28%
+
+
+-------------------------------------------------------------------------------
+2. METRICS                                                          [D18]
+-------------------------------------------------------------------------------
+  PRIMARY:    PR-AUC (average precision) - ranking quality focused on the
+              rare "yes" class. Random guessing = yes-rate (~0.113).
+  BUSINESS:   Top-20% capture - share of all subscribers found by calling
+              only the 20% highest-scored clients. Random calling = 20%.
+  SECONDARY:  ROC-AUC (0.5 = random; not affected by the yes-rate),
+              recall, precision, F1 (for "yes"), balanced accuracy.
+  NOT USED to choose models: accuracy (misleading - see below).
+  Threshold-free metrics (PR-AUC, ROC-AUC, top-20%) are used to compare
+  models; recall/precision/F1 use the default 0.5 threshold until the
+  threshold is tuned in evaluation.
+
+
+-------------------------------------------------------------------------------
+3. REFERENCE FLOOR (5-fold CV, mean +- std)
+-------------------------------------------------------------------------------
+  model                    PR-AUC        ROC-AUC       recall        precision     F1            bal.acc       accuracy      top-20%
+  Dummy: always no         0.113+-0.000  0.500+-0.000  0.000+-0.000  0.000+-0.000  0.000+-0.000  0.500+-0.000  0.887+-0.000  0.189+-0.005
+  Dummy: random guess      0.113+-0.001  0.502+-0.004  0.114+-0.006  0.115+-0.006  0.115+-0.006  0.502+-0.004  0.802+-0.001  0.199+-0.009
+  LogReg (untuned)         0.437+-0.013  0.788+-0.007  0.625+-0.014  0.339+-0.010  0.440+-0.011  0.735+-0.008  0.820+-0.005  0.620+-0.014
+  RandomForest (untuned)   0.465+-0.018  0.796+-0.009  0.590+-0.017  0.426+-0.015  0.495+-0.014  0.744+-0.009  0.864+-0.005  0.637+-0.013
+
+  FINDINGS
+  - "Always no" has the HIGHEST accuracy (0.887) yet finds ZERO subscribers
+    -> proof that accuracy is the wrong metric for this problem.
+  - The floor to beat: PR-AUC 0.113, ROC-AUC 0.50, top-20% capture ~0.19-0.20.
+  - Untuned models already reach PR-AUC 0.44-0.47 (~4x random) and find
+    62-64% of subscribers in the top 20% (3.1-3.2x random calling).
+  - RF has better precision (0.43 vs 0.34); LR has better recall (0.63 vs 0.59)
+    at the default threshold.
+  - Std across folds is small (~0.01-0.02) -> estimates are stable.
+
+
+-------------------------------------------------------------------------------
+4. LEAKAGE BENCHMARK - duration                                     [D3]
+-------------------------------------------------------------------------------
+  model                           PR-AUC         ROC-AUC        recall         top-20%
+  LogReg WITHOUT duration         0.437+-0.013   0.788+-0.007   0.625+-0.014   0.620+-0.014
+  LogReg WITH duration            0.584+-0.015   0.935+-0.003   0.880+-0.006   0.842+-0.010
+  RandomForest WITHOUT duration   0.465+-0.018   0.796+-0.009   0.590+-0.017   0.637+-0.013
+  RandomForest WITH duration      0.656+-0.016   0.946+-0.002   0.871+-0.005   0.874+-0.007
+
+  FINDINGS
+  - duration would add +0.15 (LR) / +0.19 (RF) PR-AUC and push ROC-AUC to
+    0.94-0.95 - results that look excellent but are IMPOSSIBLE before a call
+    (call length is only known once the call is over).
+  - CONFIRMS decision D3: duration stays excluded. This gap is the size of the
+    "fake" performance we avoided.
+
+
+-------------------------------------------------------------------------------
+5. TIME-DRIFT CHECK - shuffled CV vs forward-in-time CV             [D12]
+-------------------------------------------------------------------------------
+  Training rows by (reconstructed) year:
+    2008: 22,116 rows, 4.92% yes | 2009: 9,159 rows, 19.19% yes |
+    2010: 1,665 rows, 51.89% yes
+
+  Forward-in-time CV (TimeSeriesSplit, 5 folds - train on earlier rows,
+  validate on the next block):
+    fold  train rows  val period  val yes%   ROC-AUC LR / RF   PR-AUC lift LR / RF
+    1        5,490    2008          4.74      0.520 / 0.513     1.03 / 1.03
+    2       10,980    2008          6.54      0.526 / 0.504     1.07 / 1.15
+    3       16,470    2008          5.57      0.439 / 0.415     0.93 / 0.82
+    4       21,960    2008-2009    12.68      0.667 / 0.623     1.61 / 1.52
+    5       27,450    2009-2010    35.17      0.421 / 0.696     0.89 / 1.50
+
+  Comparison:
+                       ROC-AUC shuffled  ROC-AUC forward (mean / min)  PR-AUC lift shuffled / forward
+    LogReg (untuned)        0.788            0.515 / 0.421                 3.88 / 1.11
+    RandomForest (untuned)  0.796            0.550 / 0.415                 4.12 / 1.20
+
+  FINDING: predicting a FUTURE period from the past is far harder than
+  predicting clients from the same periods (near-random in most folds).
+
+  WHY (checked in the data):
+  1. The strongest client signal did not exist yet in 2008. It was the
+     bank's first campaign period: only 2.7% of 2008 clients had been
+     contacted before (32.1% in 2009, 59.0% in 2010); poutcome = success
+     was 0.1% in 2008 vs 31.5% in 2010. Validation folds 1-2 contain NO
+     previously contacted clients.
+  2. Every validation block contains months the model never saw in training
+     (e.g. fold 1 trains on May only, validates on Jun/Jul; fold 4 meets
+     Mar/Apr/Dec for the first time). One-hot encoding ignores unseen months.
+  3. Economic values move outside the training range (fold 4 validation
+     euribor 1.27-4.02 vs training 4.02-5.04; fold 5 0.63-1.29). Logistic
+     Regression extrapolates linearly and fails badly in fold 5 (ROC-AUC
+     0.42); Random Forest is more robust there (0.70).
+  NOTE: early folds are a harsh test - they train on only 1-4 months of data.
+
+  CONCLUSION
+  - Much of the shuffled-CV skill comes from period / economic conditions
+    and prior-campaign history, not only from stable client characteristics.
+  - The model can NOT be trusted under new economic conditions without
+    retraining on recent data.
+
+  DECISION (D12 closed)
+  - Shuffled stratified CV remains the scheme for comparing models: all
+    models face identical conditions, and it matches how the hold-out test
+    set was drawn.
+  - Time drift is reported as a KEY LIMITATION, with recommendations:
+    retrain regularly on the most recent campaigns, monitor performance,
+    and use the model for ranking within a campaign period.
+  - Added to Step 6 (evaluation): check the final model's ranking quality
+    separately within each year of the test set.
+
+===============================================================================

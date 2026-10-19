@@ -1,0 +1,8 @@
+,segment rule,train clients,train yes-rate %,test clients,test yes-rate %,lift (test)
+S1,poutcome = success  AND  previous > 1.5,401,75.1,107,72.0,6.39
+S2,poutcome = success  AND  previous <= 1.5  AND  campaign <= 1.5,372,58.9,88,65.9,5.85
+S3,poutcome = success  AND  previous <= 1.5  AND  campaign > 1.5,321,62.9,84,44.0,3.91
+S4,poutcome ≠ success  AND  contact ≠ telephone  AND  age > 60.5,525,39.6,114,41.2,3.66
+S5,poutcome ≠ success  AND  contact ≠ telephone  AND  age <= 60.5,19404,11.4,4822,11.6,1.03
+S6,poutcome ≠ success  AND  contact = telephone  AND  age > 57.5,471,9.3,124,8.9,0.79
+S7,poutcome ≠ success  AND  contact = telephone  AND  age <= 57.5,11446,4.6,2897,4.8,0.43

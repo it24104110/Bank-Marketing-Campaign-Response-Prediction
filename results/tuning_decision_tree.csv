@@ -1,0 +1,11 @@
+params,cv_pr_auc,cv_std,train_pr_auc,rank_test_score
+"{'model__criterion': 'entropy', 'model__max_depth': None, 'model__min_samples_leaf': 100}",0.4433,0.0156,0.4784,1
+"{'model__criterion': 'gini', 'model__max_depth': None, 'model__min_samples_leaf': 100}",0.4409,0.0154,0.4787,2
+"{'model__criterion': 'entropy', 'model__max_depth': 12, 'model__min_samples_leaf': 100}",0.4405,0.0153,0.4708,3
+"{'model__criterion': 'entropy', 'model__max_depth': 10, 'model__min_samples_leaf': 100}",0.4393,0.0156,0.4662,4
+"{'model__criterion': 'entropy', 'model__max_depth': None, 'model__min_samples_leaf': 200}",0.4388,0.0176,0.4551,5
+"{'model__criterion': 'gini', 'model__max_depth': 12, 'model__min_samples_leaf': 100}",0.4386,0.0161,0.4725,6
+"{'model__criterion': 'gini', 'model__max_depth': None, 'model__min_samples_leaf': 50}",0.4379,0.0158,0.5087,7
+"{'model__criterion': 'entropy', 'model__max_depth': 12, 'model__min_samples_leaf': 200}",0.4379,0.018,0.453,8
+"{'model__criterion': 'gini', 'model__max_depth': None, 'model__min_samples_leaf': 200}",0.4378,0.0163,0.4545,9
+"{'model__criterion': 'gini', 'model__max_depth': 10, 'model__min_samples_leaf': 100}",0.4378,0.0161,0.468,10

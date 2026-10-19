@@ -1,0 +1,209 @@
+===============================================================================
+ IT3091 Machine Learning - Group 2026-DS-02 - Bank Marketing
+ EDA FINDINGS (Step 2 - Data Understanding and Exploratory Data Analysis)
+ Source notebook: notebooks/01_eda.ipynb      Figures: figures/fig01 ... fig10
+ Dataset: data/raw/bank-additional-full.csv (41,188 rows x 21 columns)
+===============================================================================
+
+All numbers below come from the executed notebook outputs.
+Format for each finding:  WHAT we found  ->  WHY IT MATTERS  ->  WHAT WE WILL DO
+
+
+-------------------------------------------------------------------------------
+1. WHAT THE DATA IS
+-------------------------------------------------------------------------------
+- 41,188 rows, 20 input features + target y.
+    10 numeric:     age, duration, campaign, pdays, previous,
+                    emp.var.rate, cons.price.idx, cons.conf.idx, euribor3m, nr.employed
+    10 categorical: job, marital, education, default, housing, loan,
+                    contact, month, day_of_week, poutcome
+- Feature groups: client (7), contact (4), campaign history (4), economic context (5).
+- One row = one client contact record in a campaign (details of the LAST contact).
+- There is NO client ID, so we cannot tell if the same person appears more than once.
+- Rows are in date order, May 2008 -> Nov 2010 (confirmed: month blocks run in
+  calendar order and restart each year). Reconstructed years:
+      2008: 27,690 rows | 2009: 11,440 rows | 2010: 2,058 rows
+  (The reconstructed year is an EDA helper only - it is NOT used as a model feature.)
+- Data dictionary exported to: docs/data_dictionary.csv
+  -> WHY: unit of analysis confirmed for the problem framing canvas.
+  -> DO:  report "no client ID" as a limitation.
+
+
+-------------------------------------------------------------------------------
+2. TARGET VARIABLE (y)                                          [fig01]
+-------------------------------------------------------------------------------
+- no  = 36,548 (88.73%)    yes = 4,640 (11.27%)    imbalance 7.9 : 1
+- A model that always says "no" gets 88.73% accuracy but finds 0 subscribers.
+  -> WHY: accuracy is misleading on this data.
+  -> DO:  main metrics = PR-AUC, recall / precision / F1 for "yes", ROC-AUC;
+          stratified splits; handle imbalance (class weights / resampling /
+          threshold tuning) in Step 3-5.
+
+
+-------------------------------------------------------------------------------
+3. DATA QUALITY
+-------------------------------------------------------------------------------
+3.1 Missing values ("unknown")
+- 0 blank cells, but missing values are coded as the text "unknown".
+- 10,700 rows (26.0%) have at least one "unknown".
+
+    feature     n_unknown   %unknown   yes-rate if unknown   yes-rate if known
+    default        8,597     20.87%          5.15%                12.88%
+    education      1,731      4.20%         14.50%                11.12%
+    housing          990      2.40%         10.81%                11.28%
+    loan             990      2.40%         10.81%                11.28%
+    job              330      0.80%         11.21%                11.27%
+    marital           80      0.19%         15.00%                11.26%
+
+- "unknown" in default is strongly linked to a LOWER response (5.2% vs 12.9%).
+- housing and loan are "unknown" on exactly the same 990 rows.
+  -> WHY: "unknown" is not random - it carries information.
+  -> DO:  keep "unknown" as its own category (no deletion, no imputation).
+
+3.2 Rare categories
+- default = "yes" appears only 3 times (all "no" subscription)
+  -> default is effectively a 2-level feature: "no" vs "unknown".
+- education = "illiterate": 18 rows;  marital = "unknown": 80 rows;
+  month = "dec": 182 rows.
+  -> DO: merge default "yes" into another level (or treat default as
+         known/unknown); consider merging "illiterate" into "basic.4y".
+
+3.3 Duplicates
+- 12 exact duplicate rows (all 21 columns identical); no rows with identical
+  features but different targets (0 label conflicts).
+  -> DO: remove the 12 duplicates before splitting (prevents the same row
+         ending up in both train and test).
+
+3.4 pdays placeholder and consistency of previous-campaign fields
+- pdays = 999 ("never contacted") in 39,673 rows (96.3%) - a placeholder, not
+  a real number of days.
+- previous = 0 and poutcome = "nonexistent" both in 35,563 rows (consistent).
+- BUT 4,110 rows have pdays = 999 AND previous > 0 (all poutcome = "failure").
+  This contradicts the documentation's meaning of 999.
+  -> WHY: pdays=999 does not reliably mean "never contacted".
+  -> DO:  do not use raw pdays as a number; create a "contacted before" flag
+          (based on previous/poutcome) and treat pdays carefully.
+
+3.5 Outliers (1.5 x IQR rule)                                   [fig02, fig03]
+    feature         n_outliers   yes-rate if outlier   yes-rate otherwise
+    age (>69.5)          469            47.12%               10.85%
+    campaign (>6)      2,406             4.61%               11.68%
+    previous (>0)      5,625            26.65%                8.83%
+    cons.conf.idx        447            40.27%               10.95%
+- All values are realistic (no data-entry errors):
+    * age 70-98: real clients and a HIGH-response group.
+    * campaign up to 56 calls: real, but response drops with more calls.
+    * previous: 86% are 0, so the IQR collapses to 0 and EVERY previously
+      contacted client is flagged - the IQR rule does not make sense here.
+    * cons.conf.idx outliers are all -26.9 = one month's national indicator.
+  -> WHY: outliers carry signal; removing them would delete useful information.
+  -> DO:  remove NO rows; cap campaign (e.g. at 10) for Logistic Regression;
+          trees are not affected by outliers; scale numeric features for LR.
+
+
+-------------------------------------------------------------------------------
+4. WHAT IS RELATED TO SUBSCRIBING?                [fig05, fig06, fig07]
+-------------------------------------------------------------------------------
+Overall yes-rate = 11.27%. "Lift" = category rate / overall rate.
+
+4.1 Categorical features - strength of association (Cramer's V, 0 = none)
+    poutcome 0.320 | month 0.274 | job 0.153 | contact 0.145 | default 0.099
+    education 0.068 | marital 0.055 | day_of_week 0.025
+    housing 0.012 (p = 0.058, not significant) | loan 0.005 (p = 0.58, not significant)
+
+4.2 Numeric features - single-feature ROC-AUC (0.5 = useless)
+    duration 0.818 (LEAKAGE - see section 6)
+    nr.employed 0.749 | euribor3m 0.743 | emp.var.rate 0.717 | cons.price.idx 0.611
+    previous 0.609 | pdays 0.597 | campaign 0.555 | cons.conf.idx 0.537 | age 0.511
+
+4.3 Key patterns
+- PREVIOUS CAMPAIGN is the strongest client-level signal:
+    poutcome = success  -> 65.1% (5.8x)  | failure 14.2% | nonexistent 8.8%
+    previous: 0 -> 8.8%, 1 -> 21.2%, 2 -> 46.4%, 3+ -> 58.7%
+    contacted before (pdays != 999) -> 63.8% vs never 9.3%
+- ECONOMIC CONTEXT: subscriptions are much higher when euribor3m,
+  nr.employed and emp.var.rate are LOW (e.g. median euribor3m: yes 1.27 vs no 4.86).
+- MONTH: mar 50.6%, dec 48.9%, sep 44.9%, oct 43.9%, apr 20.5%
+         may only 6.4% (but May has the most calls: 13,769)
+         The four high months together have only 2,016 rows.
+- CONTACT CHANNEL: cellular 14.7% vs telephone 5.2%.
+- JOB: student 31.4%, retired 25.2%, unemployed 14.2%, admin. 13.0%;
+       lowest blue-collar 6.9%, services 8.1%.
+- AGE is U-SHAPED (non-linear):
+       17-25: 21.0% | 26-30: 13.6% | 31-40: 9.8% | 41-50: 8.2%
+       51-60: 10.7% | 61-70: 43.4% | 71+: 47.9%
+  The single-feature AUC of age (0.511) looks useless because the effect is
+  not linear - young AND old clients respond more.
+  -> DO: use age bins (or let tree models learn it) for Logistic Regression.
+- CONTACT FATIGUE (campaign): 1 call 13.0% -> 5 calls 7.5% -> 10+ calls 3.6%.
+- EDUCATION: university.degree 13.7%, unknown 14.5%; basic.9y lowest 7.8%.
+- MARITAL: single 14.0% vs married 10.2%.
+- WEAK / NO SIGNAL: housing, loan (not significant), day_of_week (very weak).
+  -> DO: candidates for removal in feature selection (Step 3), to be confirmed.
+
+4.4 Draft marketing profiles (secondary lens - to be confirmed by models)
+- High response: previously successful clients; clients contacted before;
+  students and retired / older (61+) clients; cellular contact; contacts made
+  in low-interest-rate periods.
+- Low response: never-contacted clients reached by landline, clients with
+  "unknown" default status, blue-collar workers, clients already called many
+  times in the same campaign.
+
+
+-------------------------------------------------------------------------------
+5. MODELLING RISKS
+-------------------------------------------------------------------------------
+5.1 Multicollinearity (economic indicators)                     [fig08]
+    VIF: euribor3m 64.3 | emp.var.rate 33.1 | nr.employed 31.6
+         cons.price.idx 6.3 | cons.conf.idx 2.6 | others ~1
+    Spearman rho between euribor3m, nr.employed, emp.var.rate = 0.93-0.94
+  -> WHY: makes Logistic Regression coefficients unstable / hard to interpret
+          (VIF > 10 = severe). Tree models are not affected.
+  -> DO:  for LR keep only one or two of these (or use regularisation);
+          trees can use all.
+
+5.2 Time drift                                                  [fig09]
+    Year    rows     yes-rate
+    2008   27,690     4.84%
+    2009   11,440    19.48%
+    2010    2,058    52.14%
+  - Call volume collapsed while success rate rose sharply, and euribor3m fell
+    from ~4.9% to ~0.7% at the same time (2008 financial crisis).
+  - Month and the economic indicators partly act as a proxy for this period,
+    e.g. "high-rate months" are mostly 2009-2010 months.
+  -> WHY: a random split mixes all periods, so test results may look better
+          than real future performance; the strong economic signal may not
+          generalise to a different economic situation.
+  -> DO:  Step 4 - decide random stratified split vs time-based split
+          (and/or add a time-based sensitivity check); report as a limitation.
+
+5.3 campaign is only "partly" known before the call
+  - It counts calls in THIS campaign including the last one, so at the start
+    of a campaign it is not yet known.
+  -> DO: Step 3 - decide whether to keep it (justify: known at each new
+         call attempt) and document.
+
+
+-------------------------------------------------------------------------------
+6. LEAKAGE CHECK - duration                                     [fig10]
+-------------------------------------------------------------------------------
+- Single-feature AUC of duration = 0.818, higher than ANY pre-call feature
+  (best = nr.employed 0.749).
+- Shortest 10% of calls (<= 59 s): 0.02% yes.  Longest 10% (> 551 s): 46.0% yes.
+- 4 calls with duration = 0, none subscribed.
+- duration is only known AFTER the call, when the outcome is already known.
+  -> CONFIRMS decision D3: exclude duration from the realistic model
+     (may be shown once as a benchmark to demonstrate the leakage effect).
+
+
+-------------------------------------------------------------------------------
+7. DECISIONS CARRIED FORWARD (see docs/decision_log.md, D7-D12)
+-------------------------------------------------------------------------------
+  D7  Keep "unknown" as its own category
+  D8  Remove the 12 exact duplicate rows
+  D9  Keep all outliers; cap campaign for LR
+  D10 Replace raw pdays with a "contacted before" indicator
+  D11 Handle multicollinearity of economic indicators for LR
+  D12 Validation must consider time drift (decided in Step 4)
+
+===============================================================================

@@ -1,0 +1,159 @@
+===============================================================================
+ IT3091 Machine Learning - Group 2026-DS-02 - Bank Marketing
+ MODELLING FINDINGS (Step 5 - baseline + three alternatives)
+ Source notebook: notebooks/04_modelling.ipynb
+ Saved models:    models/logistic_regression.joblib, decision_tree.joblib,
+                  random_forest.joblib, xgboost.joblib
+ Saved results:   results/best_params.json, cv_comparison.csv,
+                  overfitting_check.csv, tuning_<model>.csv
+ Figures:         figures/fig12_tuning_curves.png, fig13_model_comparison_cv.png
+===============================================================================
+
+All numbers below come from the executed notebook outputs.
+Everything was done on the TRAINING set (32,940 rows) with the same 5
+stratified CV folds. The test set is still locked.
+
+
+-------------------------------------------------------------------------------
+1. MODELS AND WHY THEY WERE CHOSEN
+-------------------------------------------------------------------------------
+  Logistic Regression  BASELINE    simple, fast, interpretable coefficients
+  Decision Tree        ALT 1       non-linear effects, readable rules
+  Random Forest        ALT 2       many de-correlated trees -> stable, robust
+  XGBoost              ALT 3       gradient boosting, strong on tabular data
+  All four: full Pipeline (preprocessing + model), class weights for
+  imbalance (D16), tuned on PR-AUC.
+
+
+-------------------------------------------------------------------------------
+2. HYPERPARAMETER TUNING
+-------------------------------------------------------------------------------
+  Model                Search                     Settings x folds   Time     Best CV PR-AUC
+  Logistic Regression  Grid (C)                   6 x 5              21 s     0.4376 +- 0.0125
+  Decision Tree        Grid (depth/leaf/crit.)    80 x 5             147 s    0.4433 +- 0.0156
+  Random Forest        Randomised                 20 x 5             1526 s   0.4702 +- 0.0176
+  XGBoost              Randomised                 25 x 5             490 s    0.4674 +- 0.0166
+
+  Best hyperparameters:
+    Logistic Regression  C = 0.01
+    Decision Tree        criterion = entropy, max_depth = None,
+                         min_samples_leaf = 100
+    Random Forest        n_estimators = 300, max_depth = 12,
+                         min_samples_leaf = 10, max_features = 0.3,
+                         class_weight = balanced
+    XGBoost              n_estimators = 600, learning_rate = 0.01,
+                         max_depth = 5, min_child_weight = 5, subsample = 0.7,
+                         colsample_bytree = 1.0, gamma = 0, reg_lambda = 1,
+                         scale_pos_weight = 7.88 (fixed)
+
+  TUNING OBSERVATIONS
+  - Logistic Regression: flat for C >= 0.01 (0.4367-0.4376); only very strong
+    regularisation (C = 0.001) hurts (0.4173). Train and CV almost equal.
+  - Decision Tree: CV PR-AUC rises with depth (0.374 at depth 3 -> 0.443 at
+    no limit) but flattens after ~10 while the train-CV gap widens. Tree size
+    is effectively limited by min_samples_leaf = 100 (every leaf has >= 100
+    clients), not by depth.
+  - Random Forest / XGBoost: the top-5 settings are within ~0.002 of each
+    other -> flat optimum; results do not depend on exact hyperparameters.
+  - Tuning gain was small compared with the untuned models of Step 4:
+    LR 0.437 -> 0.438, RF 0.465 -> 0.470. Performance looks limited by the
+    information in the pre-call features (~0.47 PR-AUC), not by tuning.
+
+
+-------------------------------------------------------------------------------
+3. MODEL COMPARISON (5-fold CV, mean +- std, default threshold 0.5)
+-------------------------------------------------------------------------------
+  model                 PR-AUC         ROC-AUC        recall         precision      F1             bal.acc        accuracy       top-20%
+  Dummy: always no      0.113+-0.000   0.500+-0.000   0.000+-0.000   0.000+-0.000   0.000+-0.000   0.500+-0.000   0.887+-0.000   0.189+-0.005
+  Dummy: random guess   0.113+-0.001   0.502+-0.004   0.114+-0.006   0.115+-0.006   0.115+-0.006   0.502+-0.004   0.802+-0.001   0.199+-0.009
+  Logistic Regression   0.438+-0.012   0.787+-0.007   0.634+-0.014   0.328+-0.012   0.432+-0.013   0.735+-0.009   0.812+-0.007   0.620+-0.014
+  Decision Tree         0.443+-0.016   0.783+-0.005   0.652+-0.011   0.315+-0.016   0.425+-0.015   0.736+-0.008   0.800+-0.012   0.625+-0.013
+  Random Forest         0.470+-0.018   0.801+-0.010   0.603+-0.013   0.411+-0.012   0.489+-0.012   0.747+-0.007   0.858+-0.004   0.643+-0.014
+  XGBoost               0.467+-0.017   0.800+-0.008   0.631+-0.011   0.372+-0.010   0.468+-0.010   0.748+-0.007   0.838+-0.004   0.642+-0.012
+
+  Paired comparison with the baseline (same folds, PR-AUC):
+    model           mean diff   std of diff   folds better
+    Decision Tree    +0.0057      0.0084         3/5
+    Random Forest    +0.0326      0.0086         5/5
+    XGBoost          +0.0298      0.0064         5/5
+
+  FINDINGS
+  - All models are far above the floor: PR-AUC ~0.44-0.47 vs 0.113 random.
+  - Random Forest and XGBoost beat the baseline in EVERY fold; the gain
+    (+0.03) is ~4x larger than its fold-to-fold variation -> a real, consistent
+    improvement.
+  - Decision Tree is NOT reliably better than the baseline (+0.006, only 3/5
+    folds, smaller than the variation).
+  - RF vs XGBoost: difference 0.003 PR-AUC, far below the fold std (~0.017)
+    -> statistically a tie.
+  - At threshold 0.5: RF is more precise (0.411) and XGBoost finds more
+    subscribers (recall 0.631). This is a threshold choice, tuned in Step 6.
+  - Business metric: calling the top-scored 20% of clients finds ~64% of all
+    subscribers with RF/XGBoost (62% LR), i.e. 3.2x random calling.
+  - Accuracy again misleads: "always no" (0.887) beats every real model on
+    accuracy while finding nobody.
+
+
+-------------------------------------------------------------------------------
+4. OVERFITTING CHECK (best setting: train vs CV PR-AUC)
+-------------------------------------------------------------------------------
+    model                 train    CV       gap      gap as % of CV
+    Logistic Regression   0.4399   0.4376   0.0023     0.5%
+    Decision Tree         0.4784   0.4433   0.0352     7.9%
+    Random Forest         0.5900   0.4702   0.1198    25.5%
+    XGBoost               0.5327   0.4674   0.0653    14.0%
+  - LR: no overfitting (simple model; also limited in what it can learn).
+  - RF memorises noticeably more of the training data (25.5% gap) yet still
+    has the best CV score; XGBoost is better regularised (14.0%).
+  - The CV score (not the train score) is what we compare, so the gap does
+    not invalidate RF, but it is a point in XGBoost's favour.
+
+
+-------------------------------------------------------------------------------
+5. SMOTE vs CLASS WEIGHTS (completes D16)
+-------------------------------------------------------------------------------
+    model                 PR-AUC weights  PR-AUC SMOTE   change    fit time weights / SMOTE
+    Logistic Regression       0.4376         0.4378      +0.0002       0.7 s /  1.5 s
+    Decision Tree             0.4433         0.3815      -0.0618       0.6 s /  2.0 s
+    Random Forest             0.4702         0.4433      -0.0269      12.9 s / 35.8 s
+    XGBoost                   0.4674         0.4481      -0.0193       5.0 s / 23.3 s
+    (top-20% capture also lower with SMOTE for DT/RF/XGB:
+     0.625->0.578, 0.643->0.630, 0.642->0.626)
+  - SMOTE never improved ranking quality and hurt all tree models, while
+    taking 2-5x longer. Likely cause: SMOTE interpolates one-hot columns,
+    creating unrealistic "half-category" clients.
+  - SMOTE shifts predictions towards higher precision / lower recall at 0.5
+    (e.g. XGBoost recall 0.631 -> 0.389), the opposite of what it is meant to do.
+  -> DECISION: class weights confirmed as the imbalance strategy.
+
+
+-------------------------------------------------------------------------------
+6. PRACTICAL COST
+-------------------------------------------------------------------------------
+    model                 fit time per fold   saved model size
+    Logistic Regression        0.7 s               7 KB
+    Decision Tree              0.6 s              45 KB
+    XGBoost                    5.0 s             1.5 MB
+    Random Forest             12.9 s              21 MB
+
+
+-------------------------------------------------------------------------------
+7. TECHNICAL NOTE - PARALLELISM
+-------------------------------------------------------------------------------
+  Process-based parallel search (GridSearchCV(n_jobs=-1)) crashes with the
+  installed joblib 1.5.1 on Windows / Python 3.13 ("No module named
+  '_posixsubprocess'"). Searches therefore run folds sequentially, while RF
+  and XGBoost use all CPU cores internally (thread-based n_jobs=-1).
+  Results are unaffected; only runtime is longer.
+
+
+-------------------------------------------------------------------------------
+8. CONCLUSION AND NEXT STEP
+-------------------------------------------------------------------------------
+  - Shortlist: RANDOM FOREST and XGBOOST (tie on CV; both clearly beat the
+    baseline). Decision Tree and LR remain as interpretable references.
+  - Final choice in Steps 6-8, based on: test-set results, threshold /
+    business trade-off, per-year robustness (time drift), overfitting,
+    interpretability and cost.
+
+===============================================================================
