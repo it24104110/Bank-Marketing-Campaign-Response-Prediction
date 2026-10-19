@@ -10,8 +10,8 @@
 [![SHAP](https://img.shields.io/badge/SHAP-0.52-8A2BE2)](https://shap.readthedocs.io/)
 [![Jupyter](https://img.shields.io/badge/Jupyter-Notebook-F37626?logo=jupyter&logoColor=white)](notebooks/2026-DS-02.ipynb)
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/SayuWanigasooriya/Bank-Marketing-Campaign-Response-Prediction/blob/main/notebooks/2026-DS-02.ipynb)
-[![nbviewer](https://img.shields.io/badge/view%20on-nbviewer-orange?logo=jupyter)](https://nbviewer.org/github/SayuWanigasooriya/Bank-Marketing-Campaign-Response-Prediction/blob/main/notebooks/2026-DS-02.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/it24104110/Bank-Marketing-Campaign-Response-Prediction/blob/main/notebooks/2026-DS-02.ipynb)
+[![nbviewer](https://img.shields.io/badge/view%20on-nbviewer-orange?logo=jupyter)](https://nbviewer.org/github/it24104110/Bank-Marketing-Campaign-Response-Prediction/blob/main/notebooks/2026-DS-02.ipynb)
 [![Final Report](https://img.shields.io/badge/📄_Final_Report-PDF-red)](2026-DS-02_IT3091_Final_Report.pdf)
 [![Model Card](https://img.shields.io/badge/🪪_Model_Card-docs-blue)](docs/model_card.md)
 [![Dataset](https://img.shields.io/badge/Dataset-UCI_Bank_Marketing-brightgreen)](https://archive.ics.uci.edu/dataset/222/bank+marketing)
@@ -223,7 +223,7 @@ flowchart LR
 Tested with **Python 3.13.7** (scikit-learn 1.7.1, pandas 2.3.2, xgboost 3.2.0, shap 0.52.0).
 
 ```bash
-git clone https://github.com/SayuWanigasooriya/Bank-Marketing-Campaign-Response-Prediction.git
+git clone https://github.com/it24104110/Bank-Marketing-Campaign-Response-Prediction.git
 cd Bank-Marketing-Campaign-Response-Prediction
 pip install -r requirements.txt
 jupyter notebook
@@ -241,7 +241,7 @@ Open [`notebooks/2026-DS-02.ipynb`](notebooks/2026-DS-02.ipynb) and choose **Ker
 
 > [!IMPORTANT]
 > **Google Colab:** the notebook reads files from `data/` and `src/`, so clone the repo first in a Colab cell
-> (`!git clone https://github.com/SayuWanigasooriya/Bank-Marketing-Campaign-Response-Prediction.git` then `%cd Bank-Marketing-Campaign-Response-Prediction`). Colab's Python version may differ from 3.13.
+> (`!git clone https://github.com/it24104110/Bank-Marketing-Campaign-Response-Prediction.git` then `%cd Bank-Marketing-Campaign-Response-Prediction`). Colab's Python version may differ from 3.13.
 
 <details>
 <summary><b>🐍 Using the saved model</b></summary>
